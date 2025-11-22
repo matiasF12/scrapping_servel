@@ -4,7 +4,11 @@ import random
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import TimeoutException
+from bs4 import BeautifulSoup
+from io import StringIO
 
+
+# FUNCIONES
 def pausa():
     time.sleep(random.uniform(0.7, 1.3))
 
@@ -41,25 +45,6 @@ def extraer_tabla_js(driver):
         return data;
     """
     return driver.execute_script(script)
-
-# def extraer_tabla_js(driver):
-#     """
-#     Extrae la tabla REAL renderizada por Alpine.js dentro de:
-#     div#filtro_tabla_computo table
-#     usando JavaScript porque page_source NO sirve.
-#     """
-#     rows = driver.execute_script("""
-#         const tbody = document.querySelector("div#filtro_tabla_computo table tbody");
-#         if (!tbody) return [];
-
-#         let data = [];
-#         for (const tr of tbody.querySelectorAll("tr")) {
-#             const tds = [...tr.querySelectorAll("td")].map(td => td.innerText.trim());
-#             data.push(tds);
-#         }
-#         return data;
-#     """)
-#     return rows
 
 def get_selects(driver):
     selects = driver.find_elements(By.TAG_NAME, "select")
@@ -122,40 +107,107 @@ def esperar_select_habilitado(driver, by, selector, timeout=10):
     raise TimeoutException("El select no se habilitó a tiempo")
 
 
-
 def construir_dataframe(rows, tipo, region, provincia, comuna):
     """
-    Construye el DataFrame correcto según el tipo de elección.
-    
-    - Presidente → 4 columnas
-    - Senadores → 5 columnas
-    - Diputados → 5 columnas
+    Devuelve un DataFrame estandarizado dependiendo del tipo de elección.
+
+    PRESIDENTE  → 3 columnas reales (candidato, votos, porcentaje)
+    SENADORES   → 5 columnas
+    DIPUTADOS   → 5 columnas
     """
 
     tipo = tipo.lower()
 
+    # --------------------------------------------------------
+    # PRESIDENTE
+    # --------------------------------------------------------
     if tipo == "presidente":
-        rows_limpias = [r[:4] for r in rows]
-        # Tabla: candidato, votos, porcentaje, electo
-        df = pd.DataFrame(rows_limpias, columns=[
-            "candidato", "votos", "porcentaje", "electo"
+        filas = []
+
+        for r in rows:
+            # limpiar celdas vacías
+            r = [c.strip() for c in r if c.strip() != ""]
+
+            # la tabla real del Servel tiene SOLO 3 columnas
+            if len(r) != 3:
+                continue
+
+            candidato, votos, porcentaje = r
+
+            filas.append([candidato, votos, porcentaje])
+
+        df = pd.DataFrame(filas, columns=[
+            "candidato",
+            "votos",
+            "porcentaje",
         ])
 
+        # agregar columnas fijas
+        df["electo"] = ""   # presidente no tiene electos por fila
+        df["region"] = region
+        df["provincia"] = provincia
+        df["comuna"] = comuna
+
+        return df
+
+    # --------------------------------------------------------
+    # SENADORES
+    # --------------------------------------------------------
     elif tipo == "senadores":
-        # Tabla: lista_pacto, votos, porcentaje, electos, candidatos
-        # A veces Servel cambia el orden, pero normalmente son 5 columnas
-        df = pd.DataFrame(rows, columns=[
-            "lista_pacto", "votos", "porcentaje", "electos", "candidatos"
-        ])
-
-    else:  # diputados
         df = pd.DataFrame(rows, columns=[
             "lista_pacto", "partido", "votos", "porcentaje", "candidatos"
         ])
 
-    # Agregar metadata de región/provincia/comuna
+    # --------------------------------------------------------
+    # DIPUTADOS
+    # --------------------------------------------------------
+    else:
+        df = pd.DataFrame(rows, columns=[
+            "lista_pacto", "partido", "votos", "porcentaje", "candidatos"
+        ])
+
+    # agregar metadata para senadores/diputados
     df["region"] = region
     df["provincia"] = provincia
     df["comuna"] = comuna
 
     return df
+
+
+def extraer_tabla_presidente(driver):
+    """
+    Extrae la tabla presidencial detectando encabezados reales.
+    Funciona aunque Servel cambie el orden de las tablas.
+    """
+    html = driver.page_source
+    soup = BeautifulSoup(html, "html.parser")
+
+    tablas = soup.find_all("table")
+    if len(tablas) == 0:
+        return None
+
+    for tabla in tablas:
+        thead = tabla.find("thead")
+        if not thead:
+            continue
+
+        headers = [
+            th.get_text(strip=True).lower()
+            for th in thead.find_all("th")
+        ]
+
+        # Encabezados típicos en Presidente
+        if (
+            "candidatos" in headers
+            and "votos" in headers
+            and "porcentaje" in headers
+        ):
+            try:
+                # Usar StringIO para evitar el FutureWarning
+                buffer = StringIO(str(tabla))
+                df = pd.read_html(buffer)[0]
+                return df
+            except:
+                continue
+
+    return None
