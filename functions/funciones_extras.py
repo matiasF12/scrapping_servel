@@ -72,3 +72,136 @@ def dhondt_distrito(df, distrito):
     df_electos = pd.concat(electos)
 
     return df_dh, escaños_pacto, df_electos
+
+
+# Normalizar tipo de eleccion
+def normalizar_tipo_eleccion(tipo_input: str) -> str:
+    tipo = tipo_input.strip().lower()
+
+    MAPEO_TIPO = {
+        # diputados
+        "diputado": "Diputados",
+        "diputada": "Diputados",
+        "diputados": "Diputados",
+        "diputadas": "Diputados",
+        "diputa": "Diputados",
+        "dip": "Diputados",
+
+        # senadores
+        "senador": "Senadores",
+        "senadora": "Senadores",
+        "senadores": "Senadores",
+        "senadoras": "Senadores",
+        "sen": "Senadores",
+
+        # presidente
+        "presidente": "Presidente",
+        "presidenta": "Presidente",
+        "presi": "Presidente",
+        "pres": "Presidente"
+    }
+
+    if tipo not in MAPEO_TIPO:
+        raise ValueError(f"Tipo de elección no reconocido: {tipo_input}")
+
+    return MAPEO_TIPO[tipo]
+
+
+def normalizar_region(nombre_region: str) -> str:
+    r = nombre_region.strip().lower()
+
+    MAPEO = {
+        # 1
+        "arica": "DE ARICA Y PARINACOTA",
+        "arica y parinacota": "DE ARICA Y PARINACOTA",
+        "parinacota": "DE ARICA Y PARINACOTA",
+
+        # 2
+        "tarapaca": "DE TARAPACA",
+        "tarapacá": "DE TARAPACA",
+
+        # 3
+        "antofagasta": "DE ANTOFAGASTA",
+
+        # 4
+        "atacama": "DE ATACAMA",
+
+        # 5
+        "coquimbo": "DE COQUIMBO",
+
+        # 6
+        "valparaiso": "DE VALPARAISO",
+        "valparaíso": "DE VALPARAISO",
+
+        # 7 METROPOLITANA
+        "rm": "METROPOLITANA DE SANTIAGO",
+        "metropolitana": "METROPOLITANA DE SANTIAGO",
+        "santiago": "METROPOLITANA DE SANTIAGO",
+        "region metropolitana": "METROPOLITANA DE SANTIAGO",
+
+        # 8 O'HIGGINS
+        "ohiggins": "DEL LIBERTADOR GENERAL BERNARDO O'HIGGINS",
+        "o'higgins": "DEL LIBERTADOR GENERAL BERNARDO O'HIGGINS",
+        "libertador": "DEL LIBERTADOR GENERAL BERNARDO O'HIGGINGS",
+
+        # 9
+        "maule": "DEL MAULE",
+
+        # 10 ÑUBLE
+        "nuble": "DE ÑUBLE",
+        "ñuble": "DE ÑUBLE",
+
+        # 11 BIOBIO
+        "biobio": "DE BIOBIO",
+        "bío bío": "DE BIOBIO",
+        "bio bío": "DE BIOBIO",
+
+        # 12 ARAUCANIA
+        "araucania": "DE LA ARAUCANIA",
+        "araucanía": "DE LA ARAUCANIA",
+
+        # 13
+        "los rios": "DE LOS RIOS",
+        "los ríos": "DE LOS RIOS",
+
+        # 14
+        "los lagos": "DE LOS LAGOS",
+
+        # 15 AYSÉN
+        "aysen": "DE AYSEN DEL GENERAL CARLOS IBAÑEZ DEL CAMPO",
+        "aysén": "DE AYSEN DEL GENERAL CARLOS IBAÑEZ DEL CAMPO",
+        "aysen del general carlos ibañez del campo": 
+            "DE AYSEN DEL GENERAL CARLOS IBAÑEZ DEL CAMPO",
+
+        # 16 MAGALLANES
+        "magallanes": "DE MAGALLANES Y DE LA ANTARTICA CHILENA",
+        "magallanes y la antartica": "DE MAGALLANES Y DE LA ANTARTICA CHILENA",
+        "magallanes y antartica": "DE MAGALLANES Y DE LA ANTARTICA CHILENA",
+    }
+
+    # Búsqueda con limpieza extrema
+    r2 = (
+        r.replace("región", "")
+         .replace("region", "")
+         .replace("de ", "")
+         .strip()
+    )
+
+    # 1° intento: clave directa
+    if r in MAPEO:
+        return MAPEO[r]
+
+    # 2° intento: variante limpiada
+    if r2 in MAPEO:
+        return MAPEO[r2]
+
+    raise ValueError(f"Región no reconocida: '{nombre_region}'")
+
+def procesar_regiones(REGIONES_INPUT: str):
+    txt = REGIONES_INPUT.strip().lower()
+
+    if txt == "todas":
+        return ["TODAS"]
+
+    partes = [p.strip() for p in txt.split(",")]
+    return [normalizar_region(p) for p in partes]
