@@ -200,8 +200,47 @@ def normalizar_region(nombre_region: str) -> str:
 def procesar_regiones(REGIONES_INPUT: str):
     txt = REGIONES_INPUT.strip().lower()
 
-    if txt == "todas":
+    if txt in ["todas", "todos"]:
         return ["TODAS"]
 
     partes = [p.strip() for p in txt.split(",")]
     return [normalizar_region(p) for p in partes]
+
+def procesar_regiones(REGIONES_INPUT: str):
+    txt = REGIONES_INPUT.strip().lower()
+
+    # --- manejar TODOS/TODAS/ALL ---
+    if txt in ["todas", "todos", "todo", "all"]:
+        return REGIONES_OFICIALES.copy()
+
+    partes = [p.strip() for p in txt.split(",")]
+    regiones_norm = [normalizar_region(p) for p in partes]
+
+    return regiones_norm
+
+REGIONES_OFICIALES = [
+    'DE ARICA Y PARINACOTA',
+    'DE TARAPACA',
+    'DE ANTOFAGASTA',
+    'DE ATACAMA',
+    'DE COQUIMBO',
+    'DE VALPARAISO',
+    'METROPOLITANA DE SANTIAGO',
+    "DEL LIBERTADOR GENERAL BERNARDO O'HIGGINS",
+    'DEL MAULE',
+    'DE ÑUBLE',
+    'DEL BIOBIO',
+    'DE LA ARAUCANIA',
+    'DE LOS RIOS',
+    'DE LOS LAGOS',
+    'DE AYSEN DEL GENERAL CARLOS IBAÑEZ DEL CAMPO',
+    'DE MAGALLANES Y DE LA ANTARTICA CHILENA'
+]
+
+def opciones_habilitadas(select_obj):
+    """Devuelve SOLO las opciones habilitadas (no disabled) y no vacías."""
+    return [
+        o.text.strip()
+        for o in select_obj.options
+        if o.is_enabled() and o.text.strip() != "Seleccionar"
+    ]
