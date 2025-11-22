@@ -1,0 +1,86 @@
+# ============================================
+# ARCHIVOS DE DATOS (NO SUBIR A GITHUB)
+# ============================================
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+*.pq
+*.feather
+*.json
+*.rds
+*.RData
+*.sav
+*.dta
+
+# Carpetas comunes de data
+data/
+datasets/
+input/
+output/
+files/
+files_project/
+tmp/
+
+# ============================================
+# ARCHIVOS DE PYTHON
+# ============================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.pickle
+
+# Entornos virtuales
+venv/
+.env/
+.env*/ 
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================================
+# ARCHIVOS DE R
+# ============================================
+.Rhistory
+.RData
+.Rproj.user/
+.Ruserdata
+.Rapp.history
+*.Rout
+
+# ============================================
+# ARCHIVOS DE QUARTO / RMD / KNITR
+# ============================================
+*_cache/
+*.utf8.md
+*.knit.md
+*.pdf
+*.html
+
+# ============================================
+# ARCHIVOS DE LOGS
+# ============================================
+*.log
+
+# ============================================
+# SISTEMA OPERATIVO
+# ============================================
+.DS_Store
+Thumbs.db
+
+# ============================================
+# GIT / GITHUB
+# ============================================
+*.orig
+*.merge
+
+# ============================================
+# IDEs
+# ============================================
+.vscode/
+.idea/
