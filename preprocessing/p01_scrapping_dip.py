@@ -10,16 +10,20 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from functions.scrapping import pausa, extraer_tabla_js, esperar_actualizacion_tabla, get_selects, esperar_select_habilitado, construir_dataframe
-from functions.funciones_extras import normalizar_tipo_eleccion, normalizar_region, procesar_regiones
+from functions.funciones_extras import normalizar_tipo_eleccion, normalizar_region, procesar_regiones, opciones_habilitadas
 
 # ============================================================
 # PARAMETROS
 # ============================================================
 
 parser = argparse.ArgumentParser(description="Scraper SERVEL - Chile")
-parser.add_argument("--tipo", type=str, default="diputado", choices=["diputados", "senadores", "presidente"], help="Tipo de elección a scrapear (default: diputados)")
-parser.add_argument("--regiones", type=str, default="Arica y Parinacota", help='Regiones a scrapear. Ej: "todas", "RM", "RM,BIOBIO", "METROPOLITANA DE SANTIAGO". Default: METROPOLITANA DE SANTIAGO')
+parser.add_argument("--tipo", type=str, default="senadores", choices=["diputados", "senadores"], help="Tipo de elección a scrapear (default: diputados)")
+parser.add_argument("--regiones", type=str, default="todas", help='Regiones a scrapear. Ej: "todas", "RM", "RM,BIOBIO", "METROPOLITANA DE SANTIAGO". Default: METROPOLITANA DE SANTIAGO')
 args = parser.parse_args()
+
+# ============================================================
+# PARAMETROS DERIVADOS
+# ============================================================
 
 TIPO_ELECCION = normalizar_tipo_eleccion(args.tipo)
 REGIONES_INPUT = args.regiones
@@ -29,9 +33,6 @@ REGIONES = procesar_regiones(args.regiones)
 
 # --- Texto del botón usando TIPO_ELECCION ya normalizado ---
 texto_boton = TIPO_ELECCION
-
-
-
 
 # ============================================================
 # CONFIGURAR NAVEGADOR
@@ -46,7 +47,7 @@ driver.get("https://elecciones.servel.cl")
 time.sleep(2)
 
 # ============================================================
-# CLICK EN DIPUTADOS
+# CLICK EN SELECCION
 # ============================================================
 
 for b in driver.find_elements(By.TAG_NAME, "button"):
@@ -59,59 +60,71 @@ time.sleep(1)
 driver.find_element(By.XPATH, "//button[contains(., 'División Geográfica Chile')]").click()
 time.sleep(1.2)
 
-
 # ============================================================
 # SCRAPING
 # ============================================================
 
 select_region, select_provincia, select_comuna = get_selects(driver)
-
 todas_las_regiones = [o.text for o in select_region.options if o.text != "Seleccionar"]
 
-# Decidir qué regiones scrapear
-if REGIONES == "todas":
-    regiones = todas_las_regiones
-else:
-    regiones = REGIONES  # viene de argparse, ya normalizado antes
+regiones_filtradas = []
+
+for r in REGIONES:
+    if r in todas_las_regiones:
+        regiones_filtradas.append(r)
+    else:
+        print(f"⚠️ Advertencia: La región '{r}' no está disponible para esta elección. Se omite.")
+
+regiones = regiones_filtradas
 
 data_final = []
 ultima_tabla = None
 
-# ultima_tabla = None  # Para detectar tablas repetidas
+# Loop
+for region in regiones:  # regiones ya viene filtrado antes
 
-for region in regiones:
+    # Filtrar regiones habilitadas dinámicamente
+    regiones_hab = opciones_habilitadas(select_region)
+    if region not in regiones_hab:
+        print(f"⚠ Región DESHABILITADA en Servel: {region} (omitida)")
+        continue
 
     select_region.select_by_visible_text(region)
     pausa()
 
+    # ======================================================
+    # 1) PROVINCIAS DESPUÉS DE SELECCIONAR LA REGIÓN
+    # ======================================================
     _, select_provincia, _ = get_selects(driver)
-    provincias = [o.text for o in select_provincia.options if o.text != "Seleccionar"]
+    provincias_hab = opciones_habilitadas(select_provincia)
 
-    for provincia in provincias:
+    for provincia in provincias_hab:
         select_provincia.select_by_visible_text(provincia)
         pausa()
 
+        # ======================================================
+        # 2) COMUNAS DESPUÉS DE SELECCIONAR LA PROVINCIA
+        # ======================================================
         _, _, select_comuna = get_selects(driver)
-        comunas = [o.text for o in select_comuna.options if o.text != "Seleccionar"]
+        comunas_hab = opciones_habilitadas(select_comuna)
 
-        for comuna in comunas:
+        for comuna in comunas_hab:
             select_comuna.select_by_visible_text(comuna)
             pausa()
 
-            # Esperar que la tabla se "actualice" respecto a la última
+            print(f"📍 Procesando → Región: {region} | Provincia: {provincia} | Comuna: {comuna}")
+
+            # Esperar actualización real de la tabla
             rows = esperar_actualizacion_tabla(driver, ultima_tabla=ultima_tabla)
 
-            # si no hay filas, log y seguir
             if len(rows) == 0:
                 print("⚠ SIN TABLA ->", comuna)
                 continue
 
-            # si es exactamente igual a la anterior, avisamos y NO guardamos
             if ultima_tabla is not None and rows == ultima_tabla:
-                print("⚠ TABLA REPETIDA (misma que comuna anterior) ->", comuna)
+                print("⚠ TABLA REPETIDA ->", comuna)
                 continue
 
-            # actualizar última tabla de referencia
             ultima_tabla = rows
 
             df = construir_dataframe(
@@ -119,19 +132,10 @@ for region in regiones:
                 tipo=TIPO_ELECCION,
                 region=region,
                 provincia=provincia,
-                comuna=comuna)
-            
+                comuna=comuna
+            )
+
             data_final.append(df)
-
-            # df = pd.DataFrame(rows, columns=[
-            #     "lista_pacto", "partido", "votos", "porcentaje", "candidatos"
-            # ])
-
-            # df["region"] = region
-            # df["provincia"] = provincia
-            # df["comuna"] = comuna
-
-            # data_final.append(df)
 
 # ============================================================
 # GUARDAR
@@ -152,3 +156,4 @@ else:
 
 
 driver.quit()
+
