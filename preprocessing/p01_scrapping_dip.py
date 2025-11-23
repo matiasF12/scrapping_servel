@@ -18,7 +18,7 @@ from functions.funciones_extras import normalizar_tipo_eleccion, normalizar_regi
 # ============================================================
 
 parser = argparse.ArgumentParser(description="Scraper SERVEL - Chile")
-parser.add_argument("--tipo", type=str, default="senadores", choices=["diputados", "senadores"], help="Tipo de elección a scrapear (default: diputados)")
+parser.add_argument("--tipo", type=str, default="diputados", choices=["diputados", "senadores"], help="Tipo de elección a scrapear (default: diputados)")
 parser.add_argument("--regiones", type=str, default="todas", help='Regiones a scrapear. Ej: "todas", "RM", "RM,BIOBIO", "METROPOLITANA DE SANTIAGO". Default: METROPOLITANA DE SANTIAGO')
 args = parser.parse_args()
 
